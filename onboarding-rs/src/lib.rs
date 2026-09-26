@@ -3,6 +3,7 @@
 
 pub mod api;
 pub mod cfgwifi;
+pub mod cli;
 pub mod preflight;
 pub mod protocol;
 pub mod pyjson;
