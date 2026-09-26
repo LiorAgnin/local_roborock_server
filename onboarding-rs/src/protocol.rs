@@ -191,8 +191,8 @@ pub fn aes_encrypt_json<T: Serialize + ?Sized>(body: &T, key: &AesKey) -> Vec<u8
     let pad = 16 - data.len() % 16;
     data.resize(data.len() + pad, pad as u8);
     let cipher = Aes128::new(&key.0.into());
-    for block in data.chunks_exact_mut(16) {
-        cipher.encrypt_block(block.into());
+    for block in data.as_chunks_mut::<16>().0 {
+        cipher.encrypt_block(block.as_mut_slice().into());
     }
     data
 }

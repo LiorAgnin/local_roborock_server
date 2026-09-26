@@ -1,6 +1,6 @@
 //! probe_tls_endpoint against real local listeners.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
@@ -72,7 +72,14 @@ fn non_tls_listener_is_a_handshake_failure() {
     let port = listener.local_addr().unwrap().port();
     thread::spawn(move || {
         if let Ok((mut sock, _)) = listener.accept() {
+            // Consume the ClientHello and close gracefully: closing with unread
+            // data makes Windows send RST, which surfaces as a connect error
+            // (os error 10053) instead of a handshake error.
+            let mut hello = [0u8; 4096];
+            let _ = sock.read(&mut hello);
             let _ = sock.write_all(b"HTTP/1.1 400 Bad Request\r\n\r\nnot tls at all\r\n");
+            let _ = sock.shutdown(std::net::Shutdown::Write);
+            let _ = sock.read_to_end(&mut Vec::new());
         }
     });
     let err = probe_tls_endpoint(&target(port, true)).unwrap_err();

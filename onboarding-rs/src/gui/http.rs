@@ -135,8 +135,8 @@ pub fn token_urlsafe24() -> String {
     let mut bytes = [0u8; 24];
     OsRng.fill_bytes(&mut bytes);
     let mut out = String::with_capacity(32);
-    for chunk in bytes.chunks_exact(3) {
-        let n = u32::from(chunk[0]) << 16 | u32::from(chunk[1]) << 8 | u32::from(chunk[2]);
+    for &[b0, b1, b2] in bytes.as_chunks::<3>().0 {
+        let n = u32::from(b0) << 16 | u32::from(b1) << 8 | u32::from(b2);
         for shift in [18, 12, 6, 0] {
             out.push(char::from(ALPHABET[(n >> shift & 0x3f) as usize]));
         }
