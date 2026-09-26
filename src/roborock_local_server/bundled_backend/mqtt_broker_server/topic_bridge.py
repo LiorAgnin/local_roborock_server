@@ -9,12 +9,28 @@ import logging
 from pathlib import Path
 import re
 import time
-from typing import Any
+from typing import Mapping, Protocol, TypedDict, cast
 
 import aiomqtt
 
 M_TOPIC_IN_RE = re.compile(r"^rr/m/i/([^/]+)/([^/]+)/([^/]+)$")
 D_TOPIC_IN_RE = re.compile(r"^rr/d/i/([^/]+)/([^/]+)$")
+
+
+class KeyModelsSource(Protocol):
+    """Runtime state view used for deterministic DUID->DID mapping."""
+
+    def key_models_by_did(self) -> Mapping[str, str]: ...
+
+
+class InventoryDevice(TypedDict, total=False):
+    """Device entry from the cloud inventory snapshot; values are unvalidated JSON."""
+
+    duid: object
+    did: object
+    device_id: object
+    device_did: object
+    model: object
 
 
 @dataclass(frozen=True)
@@ -71,7 +87,7 @@ class MqttTopicBridge:
         fixed_device_did: str = "",
         fixed_device_duid: str = "",
         fixed_device_mqtt_usr: str = "",
-        runtime_state: Any | None = None,
+        runtime_state: KeyModelsSource | None = None,
         inventory_path: Path | None = None,
     ) -> None:
         self._host = host
@@ -152,7 +168,7 @@ class MqttTopicBridge:
                 latest_seen = seen_at
         return latest_topic
 
-    def _load_inventory_devices(self) -> list[dict[str, Any]]:
+    def _load_inventory_devices(self) -> list[InventoryDevice]:
         if self._inventory_path is None or not self._inventory_path.exists():
             return []
         try:
@@ -161,15 +177,16 @@ class MqttTopicBridge:
             return []
         if not isinstance(parsed, dict):
             return []
+        inventory = cast("dict[str, object]", parsed)
 
-        devices: list[dict[str, Any]] = []
+        devices: list[InventoryDevice] = []
         for source_key in ("devices", "received_devices", "receivedDevices"):
-            source = parsed.get(source_key)
+            source = inventory.get(source_key)
             if not isinstance(source, list):
                 continue
-            for item in source:
+            for item in cast("list[object]", source):
                 if isinstance(item, dict):
-                    devices.append(item)
+                    devices.append(cast(InventoryDevice, item))
         return devices
 
     def _refresh_duid_to_did_map(self) -> None:
@@ -303,7 +320,7 @@ class MqttTopicBridge:
             mapped_duid = mapped_duids[0]
             duid_matches = [
                 cloud_topic
-                for cloud_topic, mapped_device in self._m_to_d.items()
+                for cloud_topic in self._m_to_d
                 if cloud_topic.duid == mapped_duid
             ]
             if len(duid_matches) == 1:
@@ -346,7 +363,7 @@ class MqttTopicBridge:
             mapped_duid = mapped_duids[0]
             duid_matches = [
                 cloud_topic
-                for cloud_topic, mapped_device in self._m_to_d.items()
+                for cloud_topic in self._m_to_d
                 if cloud_topic.duid == mapped_duid
             ]
             add_matches(duid_matches)

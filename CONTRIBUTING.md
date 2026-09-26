@@ -3,6 +3,8 @@
 If you would like to contribute there are a few ways that would be great!
 
 1. Code is always welcome that you have fully tested.
+   The protocol modules (MQTT proxy, topic bridge, protocol auth) are strictly type-checked:
+   run `uv run --extra dev pyright` alongside `uv run --extra dev pytest -q` before opening a PR.
 2. Video walkthroughs of how to actually set this up would be great.
 3. Documentation. Human-written documentation always 'feels' better than what AI produces.
 

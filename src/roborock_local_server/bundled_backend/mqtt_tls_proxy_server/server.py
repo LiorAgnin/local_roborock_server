@@ -11,7 +11,7 @@ import queue
 import socket
 import ssl
 import threading
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, NotRequired, TypedDict, cast
 
 from shared.constants import MQTT_TYPES
 from shared.decoder import build_decoder
@@ -21,7 +21,28 @@ from shared.runtime_credentials import RuntimeCredentialsStore, parse_mqtt_conne
 from shared.runtime_state import RuntimeState
 from shared.zone_ranges_store import ZoneRangesStore
 
-from .command_handlers import RpcCommandRegistry
+from .command_handlers import RpcCommandRegistry, RpcPayload
+
+if TYPE_CHECKING:
+    from roborock.protocol import Decoder
+    from roborock.roborock_message import RoborockMessage
+
+
+class OnboardingCandidate(TypedDict):
+    """Provisional device MQTT credentials awaiting a matching rr/d/i publish."""
+
+    did: str
+    duid: str
+    name: str
+    username: str
+    password: str
+    client_ip: str
+
+
+class DecodedPayload(TypedDict):
+    payload_utf8: str | None
+    payload_hex: NotRequired[str]
+
 
 class MqttTlsProxy:
     _MAX_FIRST_PACKET_BYTES = 1024 * 1024
@@ -69,7 +90,7 @@ class MqttTlsProxy:
         self._lock = threading.Lock()
         self._conn_protocol_levels: dict[str, int] = {}
         self._conn_endpoints: dict[str, tuple[socket.socket, socket.socket]] = {}
-        self._pending_onboarding_auth: dict[str, dict[str, str]] = {}
+        self._pending_onboarding_auth: dict[str, OnboardingCandidate] = {}
         self._trace_queue: queue.Queue[tuple[str, str, bytes] | None] = queue.Queue()
         self._trace_thread: threading.Thread | None = None
         self._protocol_auth = (
@@ -81,7 +102,7 @@ class MqttTlsProxy:
             else None
         )
         default_decoder, self._protocol_names = build_decoder(localkey)
-        self._decoder_cache: dict[str, Any] = {localkey: default_decoder}
+        self._decoder_cache: dict[str, Decoder] = {localkey: default_decoder}
         self._command_registry = RpcCommandRegistry()
 
     def _next_conn(self) -> str:
@@ -107,22 +128,22 @@ class MqttTlsProxy:
             except OSError:
                 pass
 
-    def _set_pending_onboarding_auth(self, conn_id: str, candidate: dict[str, str]) -> None:
+    def _set_pending_onboarding_auth(self, conn_id: str, candidate: OnboardingCandidate) -> None:
         with self._lock:
-            self._pending_onboarding_auth[conn_id] = dict(candidate)
+            self._pending_onboarding_auth[conn_id] = candidate.copy()
 
-    def _get_pending_onboarding_auth(self, conn_id: str) -> dict[str, str] | None:
+    def _get_pending_onboarding_auth(self, conn_id: str) -> OnboardingCandidate | None:
         with self._lock:
             candidate = self._pending_onboarding_auth.get(conn_id)
-            return dict(candidate) if candidate is not None else None
+            return candidate.copy() if candidate is not None else None
 
-    def _pop_pending_onboarding_auth(self, conn_id: str) -> dict[str, str] | None:
+    def _pop_pending_onboarding_auth(self, conn_id: str) -> OnboardingCandidate | None:
         with self._lock:
             candidate = self._pending_onboarding_auth.pop(conn_id, None)
-            return dict(candidate) if candidate is not None else None
+            return candidate.copy() if candidate is not None else None
 
     @staticmethod
-    def _decode_remaining_length(data: bytes, start: int) -> tuple[int | None, int]:
+    def _decode_remaining_length(data: bytes | bytearray, start: int) -> tuple[int | None, int]:
         multiplier = 1
         value = 0
         consumed = 0
@@ -140,7 +161,7 @@ class MqttTlsProxy:
         return None, 0
 
     @staticmethod
-    def _remaining_length_invalid(data: bytes, start: int) -> bool:
+    def _remaining_length_invalid(data: bytes | bytearray, start: int) -> bool:
         if start + 3 >= len(data):
             return False
         return (data[start + 3] & 0x80) != 0
@@ -233,7 +254,7 @@ class MqttTlsProxy:
         packet: bytes,
         *,
         client_ip: str,
-    ) -> tuple[bool, str, dict[str, Any] | None, dict[str, str] | None]:
+    ) -> tuple[bool, str, dict[str, Any] | None, OnboardingCandidate | None]:
         info = parse_mqtt_connect_packet(packet)
         if info is None:
             return False, "invalid_connect_packet", None, None
@@ -290,7 +311,7 @@ class MqttTlsProxy:
         client_ip: str,
         username: str,
         password: str,
-    ) -> dict[str, str] | None:
+    ) -> OnboardingCandidate | None:
         if self.runtime_state is None or self.runtime_credentials is None:
             return None
         candidate = self.runtime_state.onboarding_device_mqtt_candidate(client_ip=client_ip)
@@ -423,7 +444,7 @@ class MqttTlsProxy:
         return out
 
     @staticmethod
-    def _decode_payload_bytes(payload: bytes | None) -> dict[str, Any]:
+    def _decode_payload_bytes(payload: bytes | None) -> DecodedPayload:
         if payload is None:
             return {"payload_utf8": None}
         if not payload:
@@ -434,7 +455,7 @@ class MqttTlsProxy:
         except UnicodeDecodeError:
             return {"payload_utf8": None, "payload_hex": payload.hex()}
 
-    def _get_decoder(self, localkey: str) -> Any:
+    def _get_decoder(self, localkey: str) -> Decoder:
         normalized_key = str(localkey or "").strip() or self.localkey
         with self._lock:
             cached = self._decoder_cache.get(normalized_key)
@@ -458,7 +479,7 @@ class MqttTlsProxy:
             candidates.append(("default", default_key))
         return candidates
 
-    def _decode_mqtt_payload(self, topic: str, payload: bytes) -> tuple[list[Any], str, str, str]:
+    def _decode_mqtt_payload(self, topic: str, payload: bytes) -> tuple[list[RoborockMessage], str, str, str]:
         errors: list[str] = []
         for key_source, localkey in self._candidate_localkeys(topic):
             decoder = self._get_decoder(localkey)
@@ -474,43 +495,45 @@ class MqttTlsProxy:
         return [], "none", "; ".join(errors[:6]), ""
 
     @staticmethod
-    def _parse_v1_rpc_payload(payload_utf8: str | None, protocol_value: int) -> dict[str, Any] | None:
+    def _parse_v1_rpc_payload(payload_utf8: str | None, protocol_value: int) -> RpcPayload | None:
         if not payload_utf8:
             return None
         try:
-            payload_obj = json.loads(payload_utf8)
+            payload_obj: object = json.loads(payload_utf8)
         except (TypeError, json.JSONDecodeError):
             return None
         if not isinstance(payload_obj, dict):
             return None
-        datapoints = payload_obj.get("dps")
+        datapoints = cast("dict[str, object]", payload_obj).get("dps")
         if not isinstance(datapoints, dict):
             return None
         dps_key = "101" if protocol_value == 101 else "102" if protocol_value == 102 else None
         if dps_key is None:
             return None
-        raw_rpc = datapoints.get(dps_key)
+        raw_rpc = cast("dict[str, object]", datapoints).get(dps_key)
         if raw_rpc is None:
             return None
+        rpc_obj: object
         if isinstance(raw_rpc, str):
             try:
                 rpc_obj = json.loads(raw_rpc)
             except json.JSONDecodeError:
                 return None
         elif isinstance(raw_rpc, dict):
-            rpc_obj = raw_rpc
+            rpc_obj = cast("dict[str, object]", raw_rpc)
         else:
             return None
         if not isinstance(rpc_obj, dict):
             return None
+        rpc = cast("dict[str, object]", rpc_obj)
 
-        parsed: dict[str, Any] = {"id": rpc_obj.get("id")}
+        parsed: RpcPayload = {"id": rpc.get("id")}
         if protocol_value == 101:
-            parsed["method"] = rpc_obj.get("method")
-            parsed["params"] = rpc_obj.get("params")
+            parsed["method"] = rpc.get("method")
+            parsed["params"] = rpc.get("params")
         else:
-            parsed["result"] = rpc_obj.get("result")
-            parsed["error"] = rpc_obj.get("error")
+            parsed["result"] = rpc.get("result")
+            parsed["error"] = rpc.get("error")
         return parsed
 
     def _trace_packet(self, conn_id: str, direction: str, packet: bytes) -> None:
@@ -579,11 +602,7 @@ class MqttTlsProxy:
         for message in messages:
             proto_value = int(getattr(message.protocol, "value", message.protocol))
             proto_name = self._protocol_names.get(proto_value, f"P{proto_value}")
-            version = (
-                message.version.decode("utf-8", "replace")
-                if isinstance(message.version, (bytes, bytearray))
-                else str(message.version)
-            )
+            version = message.version.decode("utf-8", "replace")
             payload_bytes = message.payload if isinstance(message.payload, bytes) else b""
             payload_data = self._decode_payload_bytes(payload_bytes)
             payload_compact = payload_data.get("payload_utf8")
