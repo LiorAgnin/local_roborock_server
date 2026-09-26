@@ -2,6 +2,7 @@
 //! client, stack preflight, the interactive CLI and the localhost web UI.
 
 pub mod api;
+pub mod cfgwifi;
 pub mod preflight;
 pub mod protocol;
 pub mod pyjson;

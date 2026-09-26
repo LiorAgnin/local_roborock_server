@@ -1,5 +1,8 @@
-//! Shared test helpers: a scriptable mock admin HTTP server.
+//! Shared test helpers: a scriptable mock admin HTTP server and a mock
+//! vacuum answering the cfgwifi UDP handshake.
 #![allow(dead_code)]
+
+pub mod vacuum;
 
 use std::io::Read;
 use std::sync::{Arc, Mutex};
