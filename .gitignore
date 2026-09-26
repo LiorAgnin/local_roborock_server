@@ -11,3 +11,7 @@ secrets/
 config.toml
 mitm_logs
 .tmp*
+
+# Local agent/tool state
+.claude/worktrees/
+.serena/
