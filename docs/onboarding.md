@@ -10,26 +10,49 @@ If this is a brand new vacuum, it is still a good idea to set it up once in the 
 
 You can onboard your vacuum using either of the following approaches:
 
-1. **[Via Computer (CLI or Web UI)](#guided-flow-cli)** — Run the guided onboarding script (`start_onboarding.py` or `start_onboarding_gui.py`) from a second machine on your network.
+1. **[Via Computer (CLI or Web UI)](#guided-flow-cli)** — Run the guided onboarding tool (`roborock-onboard`, or the Python scripts `start_onboarding.py` / `start_onboarding_gui.py`) from a second machine on your network.
 2. **[Via Mobile App (LocalRock)](#alternative-onboarding-via-localrock)** — Provision directly from your phone over Wi-Fi using the third-party LocalRock app.
 
 ---
+
+## Get The Onboarding Tool
+
+`roborock-onboard` is a single self-contained binary with both the CLI and the web UI. It needs no Python, `uv` or other dependencies. Download the file for your machine from the [latest release](https://github.com/python-roborock/local_roborock_server/releases/latest):
+
+| Machine | File |
+| --- | --- |
+| macOS, Apple Silicon | `roborock-onboard-aarch64-apple-darwin` |
+| macOS, Intel | `roborock-onboard-x86_64-apple-darwin` |
+| Linux, x86_64 | `roborock-onboard-x86_64-unknown-linux-musl` |
+| Linux, ARM64 (e.g. Raspberry Pi 4/5 with a 64-bit OS) | `roborock-onboard-aarch64-unknown-linux-musl` |
+| Windows, x86_64 | `roborock-onboard-x86_64-pc-windows-msvc.exe` |
+
+On macOS or Linux, download it and make it executable (swap in the file name from the table):
+
+```bash
+curl -L -o roborock-onboard \
+  https://github.com/python-roborock/local_roborock_server/releases/latest/download/roborock-onboard-aarch64-apple-darwin
+chmod +x roborock-onboard
+```
+
+Each file has a matching `.sha256` checksum next to it on the release page. If macOS blocks a copy you downloaded through a browser, clear the quarantine flag with `xattr -d com.apple.quarantine roborock-onboard`. On Windows, run the `.exe` from PowerShell or Command Prompt, for example `.\roborock-onboard-x86_64-pc-windows-msvc.exe --server api-roborock.example.com`.
+
+To build it yourself from a checkout instead, install Rust and run `cargo build --release --manifest-path onboarding-rs/Cargo.toml`. The binary ends up in `onboarding-rs/target/release/`.
+
+The [Python scripts](#python-scripts-fallback) still work and follow the same flow if you would rather run those.
 
 ## Guided Flow (CLI)
 
 Run onboarding from a second machine, not from the machine hosting the local server:
 
-- It needs Python 3.11+ and `uv`.
 - It must be able to switch from your normal Wi-Fi to the vacuum's temporary Wi-Fi hotspot and back.
 - It must resolve your `api-...` stack hostname to the server's LAN IP when it is back on your normal Wi-Fi.
 
 ```bash
-uv run start_onboarding.py --server api-roborock.example.com
+./roborock-onboard --server api-roborock.example.com
 ```
 
 If you omit the port, the CLI assumes the default local stack HTTPS port `555`. If your stack uses a custom HTTPS port, include it in `--server`, for example `api-roborock.example.com:8443`.
-
-This can be run from a checkout of this repository. If you copy the CLI to another machine instead, keep `start_onboarding.py` and `onboarding_shared.py` together in the same directory and run it with `uv`.
 
 Onboarding has a hard `token.r` limit of 32 characters after normalization to the final `host[:port]/` value sent to the vacuum. 
 
@@ -48,7 +71,7 @@ You do not need to watch the admin dashboard manually during the loop anymore.
 
 ## Prompts And Defaults
 
-The only required CLI flag is `--server`. The script will prompt for anything missing:
+The only required CLI flag is `--server`. The tool will prompt for anything missing (passwords are read with hidden input):
 
 - `admin password`
 - `ssid`
@@ -60,10 +83,12 @@ The only required CLI flag is `--server`. The script will prompt for anything mi
 You can still pass them explicitly if you prefer:
 
 ```bash
-uv run start_onboarding.py --server api-roborock.example.com --ssid "My Wifi" --password "Password123" --timezone "America/New_York" --cst EST5EDT,M3.2.0,M11.1.0 --country-domain us
+./roborock-onboard --server api-roborock.example.com --ssid "My Wifi" --password "Password123" --timezone "America/New_York" --cst EST5EDT,M3.2.0,M11.1.0 --country-domain us
 ```
 
 `server` should be your real stack hostname, usually the same `api-...` hostname you use for `/admin`. If you omit the port, the CLI assumes `:555`. Explicit ports are supported, so if your admin page is at `https://api-roborock.example.com:8443/admin`, use `--server api-roborock.example.com:8443`.
+
+If your stack uses a self-signed certificate, `--allow-insecure-tls` skips certificate verification for the admin API and the preflight TLS checks. The vacuum still has to trust your certificate, so treat this as a diagnostic option. Run `./roborock-onboard --help` for the full flag list.
 
 ## CST Examples
 
@@ -99,15 +124,15 @@ You still need to reset the vacuum's Wi-Fi manually. On many Roborock models tha
 
 Congrats! Once the script reports that the vacuum is connected to the local server, the onboarding flow is complete.
 
-## Web UI (start_onboarding_gui.py)
+## Web UI (roborock-onboard gui)
 
 If you would rather not use the terminal, there is a web UI version of the same flow. It runs a small local server on your machine and opens your browser automatically:
 
 ```bash
-uv run start_onboarding_gui.py
+./roborock-onboard gui
 ```
 
-No CLI flags. All configuration happens in the browser form on first load.
+All configuration happens in the browser form on first load. The only option is `--no-browser`, which prints the URL without opening a browser (handy over SSH with a port forward).
 
 Enter the same server host you use for `/admin`. If your stack runs on a custom HTTPS port, include it in the form, for example `api-roborock.example.com:8443`.
 
@@ -138,7 +163,7 @@ A live log pane below the stepper shows every packet, status check, and state tr
 
 Your inputs live only in memory for the duration of the run and are discarded when you click Quit or shut down the server.
 
-Unlike `start_onboarding.py`, the GUI flow also serves the local HTML file. If you copy it to another machine, keep `start_onboarding_gui.py`, `ui.html`, and `onboarding_shared.py` together in the same directory.
+The `roborock-onboard` binary has the page built in, so there is nothing else to copy.
 
 ### Same caveats as the CLI
 
@@ -151,6 +176,17 @@ Everything in "What To Expect" above still applies. Some vacuums need 2-4 cycles
 - **"No known vacuums are available for onboarding."** Go back and finish the cloud import/fetch-data step first so the server has the vacuum inventory.
 - **"Could not reach the server after leaving the vacuum hotspot."** Your machine did not rejoin your normal Wi-Fi within two minutes. Check your network and click Retry.
 - **The UI is stuck on "Polling...".** Give it the full five-minute timeout. Some vacuums are especially slow on the final cycle after the public key is already ready. If nothing changes, check the log pane for errors, then click Retry or Pick another vacuum.
+
+## Python Scripts (Fallback)
+
+The original Python versions of both tools are still in this repository and run the same flow. They need Python 3.11+ and `uv`:
+
+```bash
+uv run start_onboarding.py --server api-roborock.example.com
+uv run start_onboarding_gui.py
+```
+
+`start_onboarding.py` takes the same flags as `roborock-onboard`. `start_onboarding_gui.py` takes no flags. Run them from a checkout of this repository. If you copy them to another machine instead, keep `start_onboarding.py` and `onboarding_shared.py` together in the same directory for the CLI, and `start_onboarding_gui.py`, `ui.html` and `onboarding_shared.py` together for the web UI.
 
 ---
  
