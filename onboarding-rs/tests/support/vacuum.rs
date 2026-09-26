@@ -132,8 +132,8 @@ fn aes_decrypt(data: &[u8], key: &str) -> Vec<u8> {
     let key: [u8; 16] = key.as_bytes().try_into().unwrap();
     let cipher = Aes128::new(&key.into());
     let mut data = data.to_vec();
-    for block in data.chunks_exact_mut(16) {
-        cipher.decrypt_block(block.into());
+    for block in data.as_chunks_mut::<16>().0 {
+        cipher.decrypt_block(block.as_mut_slice().into());
     }
     let pad = usize::from(*data.last().unwrap());
     assert!((1..=16).contains(&pad), "bad PKCS7 padding");
