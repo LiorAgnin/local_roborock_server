@@ -15,3 +15,6 @@ mitm_logs
 # Local agent/tool state
 .claude/worktrees/
 .serena/
+
+# Rust onboarding tool build output
+onboarding-rs/target/
