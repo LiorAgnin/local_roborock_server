@@ -102,3 +102,24 @@ fn frames_are_byte_identical_to_python() {
         text(&fx, "frame_empty_cmd1_hex")
     );
 }
+
+#[test]
+fn server_normalization_matches_python() {
+    use roborock_onboard::server::{normalize_api_base_url, sanitize_stack_server};
+    let fx = fixture();
+    for case in fx["server_normalization"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let api = normalize_api_base_url(input).map_err(|e| e.to_string());
+        match (&case["api_base_url"], &case["api_base_url_error"]) {
+            (Value::String(ok), _) => assert_eq!(api.as_deref(), Ok(ok.as_str()), "{input:?}"),
+            (_, Value::String(msg)) => assert_eq!(api, Err(msg.clone()), "{input:?}"),
+            _ => panic!("bad fixture case {case}"),
+        }
+        let stack = sanitize_stack_server(input).map_err(|e| e.to_string());
+        match (&case["stack_server"], &case["stack_server_error"]) {
+            (Value::String(ok), _) => assert_eq!(stack.as_deref(), Ok(ok.as_str()), "{input:?}"),
+            (_, Value::String(msg)) => assert_eq!(stack, Err(msg.clone()), "{input:?}"),
+            _ => panic!("bad fixture case {case}"),
+        }
+    }
+}
