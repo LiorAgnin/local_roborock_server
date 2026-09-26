@@ -1,8 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues.
-
-**CLI:** this repo follows the global tooling rule of running `npx -y gh-axi ...` for every GitHub operation instead of calling `gh` directly. The `gh ...` commands below describe the intended operation; translate each one to its gh-axi subcommand (run `npx -y gh-axi --help` for the command index, or load the `gh-axi` skill).
+Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 ## Conventions
 
@@ -13,7 +11,7 @@ Issues and specs for this repo live as GitHub issues.
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-**Always pass `-R LiorAgnin/local_roborock_server`.** This clone is a fork with an `upstream` remote pointing at `Python-roborock/local_roborock_server`, and the CLI defaults to upstream when no repo is given. Never create, comment on, or label issues upstream from these skills: we have no triage rights there.
+Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
 ## Pull requests as a triage surface
 

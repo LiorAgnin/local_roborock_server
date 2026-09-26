@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues are tracked in this repo's GitHub Issues, operated through `npx -y gh-axi`. See `docs/agents/issue-tracker.md`.
+Issues are tracked in the fork's GitHub Issues (`LiorAgnin/local_roborock_server`, never upstream), operated through `npx -y gh-axi -R ...`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
