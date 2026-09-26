@@ -19,14 +19,25 @@ RUN uv venv /opt/venv
 
 WORKDIR /src
 
-# Dependencies first so code-only changes reuse this layer.
+# Dependencies first so code-only changes reuse this layer. Then drop what the
+# app never imports: Pillow and vacuum-map-parser (pulled in by python-roborock
+# only for its map rendering; nothing else depends on them) and pycryptodome's
+# bundled self-tests.
 COPY pyproject.toml README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-  uv pip install --python /opt/venv/bin/python -r pyproject.toml
+  uv pip install --python /opt/venv/bin/python -r pyproject.toml \
+  && uv pip uninstall --python /opt/venv/bin/python \
+    pillow vacuum-map-parser-base vacuum-map-parser-roborock \
+  && rm -rf /opt/venv/lib/python3*/site-packages/Crypto/SelfTest \
+    /opt/venv/lib/python3*/site-packages/Cryptodome/SelfTest
 
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv pip install --python /opt/venv/bin/python --no-deps .
+
+# Fail the build if the app (or a python-roborock bump) now imports what was removed.
+COPY scripts/check_import_graph.py /tmp/check_import_graph.py
+RUN /opt/venv/bin/python /tmp/check_import_graph.py
 
 # acme.sh, pinned to a release tag and verified by checksum.
 FROM ${PYTHON_IMAGE} AS acme

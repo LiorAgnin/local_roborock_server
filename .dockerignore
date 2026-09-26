@@ -1,6 +1,7 @@
 *
 !README.md
 !pyproject.toml
+!scripts/check_import_graph.py
 !src/
 !src/**
 src/**/__pycache__/
