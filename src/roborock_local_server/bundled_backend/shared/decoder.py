@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-from typing import Any, Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from roborock.protocol import Decoder
 
 
 def _ensure_local_python_roborock_on_path() -> None:
@@ -16,7 +19,7 @@ def _ensure_local_python_roborock_on_path() -> None:
             sys.path.insert(0, local_path)
 
 
-def build_decoder(localkey: str) -> tuple[Callable[[bytes], list[Any]], dict[int, str]]:
+def build_decoder(localkey: str) -> tuple[Decoder, dict[int, str]]:
     _ensure_local_python_roborock_on_path()
     try:
         from roborock.protocol import create_mqtt_decoder

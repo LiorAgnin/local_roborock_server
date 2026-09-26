@@ -3,7 +3,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol, Sequence, TypedDict, cast
+
+
+class RpcPayload(TypedDict, total=False):
+    """Decoded V1 RPC body: requests carry method/params, responses result/error."""
+
+    id: object
+    method: object
+    params: object
+    result: object
+    error: object
+
+
+class RpcResponseMatch(TypedDict):
+    """A V1 RPC response paired with the request it answers."""
+
+    request_id: int
+    request_method: object
+    request_params: object
+    result: object
+    error: object
 
 
 @dataclass(frozen=True)
@@ -11,7 +31,7 @@ class HandlerResult:
     """Result from handling one RPC request."""
 
     handled: dict[str, Any]
-    state_updates: dict[str, Any] = field(default_factory=dict)
+    state_updates: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 class RpcCommandHandler(Protocol):
@@ -19,15 +39,15 @@ class RpcCommandHandler(Protocol):
 
     methods: set[str]
 
-    def handle_request(self, request: dict[str, Any]) -> HandlerResult | None:
+    def handle_request(self, request: RpcPayload) -> HandlerResult | None:
         """Handle a decoded RPC request payload."""
 
 
-def _parse_fan_power(params: Any) -> int | None:
+def _parse_fan_power(params: object) -> int | None:
     if isinstance(params, int):
         return params
     if isinstance(params, list) and params:
-        first = params[0]
+        first = cast("list[object]", params)[0]
         if isinstance(first, int):
             return first
         if isinstance(first, str):
@@ -43,7 +63,7 @@ class FanPowerHandler:
 
     methods = {"set_custom_mode", "set_clean_motor_mode"}
 
-    def handle_request(self, request: dict[str, Any]) -> HandlerResult | None:
+    def handle_request(self, request: RpcPayload) -> HandlerResult | None:
         method = request.get("method")
         if method not in self.methods:
             return None
@@ -61,14 +81,14 @@ class RpcCommandRegistry:
 
     def __init__(self, handlers: Sequence[RpcCommandHandler] | None = None) -> None:
         self._handlers = list(handlers or [FanPowerHandler()])
-        self._pending_by_id: dict[int, dict[str, Any]] = {}
+        self._pending_by_id: dict[int, RpcPayload] = {}
         self._state: dict[str, Any] = {}
 
     @property
     def state(self) -> dict[str, Any]:
         return dict(self._state)
 
-    def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
+    def handle_request(self, request: RpcPayload) -> dict[str, Any] | None:
         request_id = request.get("id")
         method = request.get("method")
         params = request.get("params")
@@ -97,7 +117,7 @@ class RpcCommandRegistry:
             return out
         return None
 
-    def handle_response(self, response: dict[str, Any]) -> dict[str, Any] | None:
+    def handle_response(self, response: RpcPayload) -> RpcResponseMatch | None:
         request_id = response.get("id")
         if not isinstance(request_id, int):
             return None

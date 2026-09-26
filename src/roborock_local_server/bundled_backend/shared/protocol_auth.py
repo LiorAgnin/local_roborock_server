@@ -12,11 +12,53 @@ from pathlib import Path
 import secrets
 import threading
 import time
-from typing import Any, Mapping
+from typing import Any, Mapping, TypedDict, TypeGuard, cast
 
 
 def _clean_str(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _is_json_object(value: object) -> TypeGuard[dict[str, Any]]:
+    """Narrow a decoded JSON value to an object (JSON object keys are always str)."""
+    return isinstance(value, dict)
+
+
+def _is_str_mapping(value: object) -> TypeGuard[Mapping[str, Any]]:
+    return isinstance(value, Mapping)
+
+
+class HawkAuthorization(TypedDict):
+    """Required attributes of an `Authorization: Hawk ...` header."""
+
+    id: str
+    s: str
+    ts: str
+    nonce: str
+    mac: str
+
+
+class RriotCredentials(TypedDict):
+    u: str
+    s: str
+    h: str
+    k: str
+
+
+class SessionUserData(TypedDict, total=False):
+    """Minimal user_data persisted for one protocol session."""
+
+    uid: Any
+    token: str
+    rruid: str
+    rriot: RriotCredentials
+    source: str
+    updated_at_utc: str
+
+
+class SessionStoreFile(TypedDict):
+    version: int
+    sessions: list[dict[str, Any]]
 
 
 def _md5hex(value: str) -> str:
@@ -33,7 +75,7 @@ def _parse_json_body_param_map(body_params: dict[str, list[str]]) -> dict[str, A
             parsed = json.loads(raw)
         except (TypeError, json.JSONDecodeError):
             continue
-        if isinstance(parsed, dict):
+        if _is_json_object(parsed):
             return parsed
     return {}
 
@@ -92,7 +134,7 @@ def _build_hawk_mac(
     return base64.b64encode(hmac.new(hawk_key.encode(), prestr.encode(), hashlib.sha256).digest()).decode()
 
 
-def _parse_hawk_authorization(value: str) -> dict[str, str] | None:
+def _parse_hawk_authorization(value: str) -> HawkAuthorization | None:
     raw = _clean_str(value)
     if not raw or not raw.lower().startswith("hawk "):
         return None
@@ -109,7 +151,13 @@ def _parse_hawk_authorization(value: str) -> dict[str, str] | None:
     required = {"id", "s", "ts", "nonce", "mac"}
     if not required.issubset(attributes):
         return None
-    return attributes
+    return HawkAuthorization(
+        id=attributes["id"],
+        s=attributes["s"],
+        ts=attributes["ts"],
+        nonce=attributes["nonce"],
+        mac=attributes["mac"],
+    )
 
 
 @dataclass(frozen=True)
@@ -135,14 +183,14 @@ class ProtocolAvailability:
 
 def _session_identity(user_data: Mapping[str, Any]) -> tuple[str, str]:
     rriot = user_data.get("rriot")
-    if not isinstance(rriot, Mapping):
+    if not _is_str_mapping(rriot):
         return "", ""
     return _clean_str(rriot.get("u")), _clean_str(rriot.get("s"))
 
 
-def _minimal_session_user_data(user_data: Mapping[str, Any], *, source: str = "", updated_at_utc: str = "") -> dict[str, Any]:
+def _minimal_session_user_data(user_data: Mapping[str, Any], *, source: str = "", updated_at_utc: str = "") -> SessionUserData:
     rriot = dict(user_data.get("rriot") or {})
-    normalized: dict[str, Any] = {
+    normalized: SessionUserData = {
         "uid": user_data.get("uid"),
         "token": _clean_str(user_data.get("token")),
         "rruid": _clean_str(user_data.get("rruid")),
@@ -162,9 +210,11 @@ def _minimal_session_user_data(user_data: Mapping[str, Any], *, source: str = ""
 
 def _clone_json_value(value: Any) -> Any:
     if isinstance(value, dict):
-        return {str(key): _clone_json_value(item) for key, item in value.items()}
+        mapping = cast("dict[Any, Any]", value)
+        return {str(key): _clone_json_value(item) for key, item in mapping.items()}
     if isinstance(value, list):
-        return [_clone_json_value(item) for item in value]
+        items = cast("list[Any]", value)
+        return [_clone_json_value(item) for item in items]
     return value
 
 
@@ -226,14 +276,14 @@ class ProtocolAuthStore:
         self._nonces: dict[str, float] = {}
 
     @staticmethod
-    def _missing_user_fields(user_data: dict[str, Any]) -> list[str]:
+    def _missing_user_fields(user_data: Mapping[str, Any]) -> list[str]:
         missing: list[str] = []
         if not _clean_str(user_data.get("token")):
             missing.append("token")
         if not _clean_str(user_data.get("rruid")):
             missing.append("rruid")
         rriot = user_data.get("rriot")
-        if not isinstance(rriot, dict):
+        if not _is_json_object(rriot):
             missing.append("rriot")
             return missing
         if not _clean_str(rriot.get("u")):
@@ -247,7 +297,7 @@ class ProtocolAuthStore:
         return missing
 
     @staticmethod
-    def _build_user(user_data: dict[str, Any]) -> ProtocolUserData:
+    def _build_user(user_data: Mapping[str, Any]) -> ProtocolUserData:
         rriot = dict(user_data.get("rriot") or {})
         hawk_id = _clean_str(rriot.get("u"))
         hawk_session = _clean_str(rriot.get("s"))
@@ -291,11 +341,11 @@ class ProtocolAuthStore:
             parsed = json.loads(self.snapshot_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return None, "missing_snapshot_or_user_data", ()
-        if not isinstance(parsed, dict):
+        if not _is_json_object(parsed):
             return None, "missing_snapshot_or_user_data", ()
 
         user_data = parsed.get("user_data")
-        if not isinstance(user_data, dict):
+        if not _is_json_object(user_data):
             return None, "missing_snapshot_or_user_data", ()
 
         missing_fields = tuple(self._missing_user_fields(user_data))
@@ -327,16 +377,17 @@ class ProtocolAuthStore:
             self._persisted_session_records = ()
             return ()
 
-        sessions = parsed.get("sessions") if isinstance(parsed, dict) else None
+        sessions = parsed.get("sessions") if _is_json_object(parsed) else None
         if not isinstance(sessions, list):
             self._persisted_session_records = ()
             return ()
 
+        raw_records = cast("list[Any]", sessions)
         normalized_records: list[dict[str, Any]] = []
-        for raw_record in sessions:
-            if isinstance(raw_record, dict):
-                user_data = raw_record.get("user_data") if isinstance(raw_record.get("user_data"), dict) else raw_record
-                if isinstance(user_data, dict):
+        for raw_record in raw_records:
+            if _is_json_object(raw_record):
+                user_data = raw_record.get("user_data") if _is_json_object(raw_record.get("user_data")) else raw_record
+                if _is_json_object(user_data):
                     normalized_records.append(dict(raw_record))
         self._persisted_session_records = tuple(normalized_records)
         return self._persisted_session_records
@@ -344,7 +395,7 @@ class ProtocolAuthStore:
     def _persist_session_records_locked(self, records: list[dict[str, Any]]) -> None:
         if self.session_store_path is None:
             return
-        payload = {"version": 1, "sessions": records[: self.max_persisted_sessions]}
+        payload: SessionStoreFile = {"version": 1, "sessions": records[: self.max_persisted_sessions]}
         self.session_store_path.parent.mkdir(parents=True, exist_ok=True)
         self.session_store_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         try:
@@ -360,8 +411,8 @@ class ProtocolAuthStore:
         users: list[ProtocolUserData] = []
         seen: set[tuple[str, str]] = set()
         for raw_record in records:
-            user_data = raw_record.get("user_data") if isinstance(raw_record.get("user_data"), dict) else raw_record
-            if not isinstance(user_data, dict):
+            user_data = raw_record.get("user_data") if _is_json_object(raw_record.get("user_data")) else raw_record
+            if not _is_json_object(user_data):
                 continue
             missing_fields = self._missing_user_fields(user_data)
             if missing_fields:
@@ -426,10 +477,10 @@ class ProtocolAuthStore:
             for existing_record in existing_records:
                 existing_user = (
                     existing_record.get("user_data")
-                    if isinstance(existing_record.get("user_data"), dict)
+                    if _is_json_object(existing_record.get("user_data"))
                     else existing_record
                 )
-                if isinstance(existing_user, Mapping) and _session_identity(existing_user) == normalized_identity:
+                if _is_str_mapping(existing_user) and _session_identity(existing_user) == normalized_identity:
                     removed = True
                     continue
                 filtered_records.append(existing_record)
@@ -479,10 +530,10 @@ class ProtocolAuthStore:
             for existing_record in existing_records:
                 existing_user = (
                     existing_record.get("user_data")
-                    if isinstance(existing_record.get("user_data"), dict)
+                    if _is_json_object(existing_record.get("user_data"))
                     else existing_record
                 )
-                if isinstance(existing_user, Mapping) and _session_identity(existing_user) == identity:
+                if _is_str_mapping(existing_user) and _session_identity(existing_user) == identity:
                     continue
                 filtered_records.append(existing_record)
             filtered_records.insert(0, persisted_record)
@@ -492,11 +543,11 @@ class ProtocolAuthStore:
         return self._build_user(persisted_user_data)
 
     def issue_local_session(self, base_user_data: Mapping[str, Any], *, source: str = "") -> dict[str, Any]:
-        if not isinstance(base_user_data, Mapping):
+        if not isinstance(base_user_data, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance] -- runtime guard for untyped callers
             raise ValueError("base_user_data must be a mapping")
 
         issued_user_data = _clone_json_value(dict(base_user_data))
-        if not isinstance(issued_user_data, dict):
+        if not _is_json_object(issued_user_data):
             raise ValueError("base_user_data must be a mapping")
 
         rruid = _clean_str(issued_user_data.get("rruid"))
@@ -505,7 +556,7 @@ class ProtocolAuthStore:
 
         issued_user_data["token"] = f"rr{secrets.token_hex(16)}"
         rriot_value = issued_user_data.get("rriot")
-        rriot = dict(rriot_value) if isinstance(rriot_value, dict) else {}
+        rriot: dict[str, Any] = dict(rriot_value) if _is_json_object(rriot_value) else {}
         rriot["u"] = secrets.token_hex(11)
         rriot["s"] = secrets.token_hex(6)
         rriot["h"] = secrets.token_hex(16)
@@ -521,7 +572,7 @@ class ProtocolAuthStore:
                 parsed = json.loads(self.snapshot_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
                 raise ValueError("missing_snapshot_or_user_data") from exc
-            if not isinstance(parsed, dict) or not isinstance(parsed.get("user_data"), dict):
+            if not _is_json_object(parsed) or not _is_json_object(parsed.get("user_data")):
                 raise ValueError("missing_snapshot_or_user_data")
             return self.upsert_user_data(parsed["user_data"], source=source)
 
@@ -589,7 +640,7 @@ class ProtocolAuthStore:
             if raw_body is not None:
                 json_body = raw_body
             else:
-                json_raw = next((value for value in body_params.get("__json", []) if isinstance(value, str)), "")
+                json_raw = next(iter(body_params.get("__json", [])), "")
                 json_body = json_raw.encode("utf-8")
         expected_mac = _build_hawk_mac(
             hawk_id=user.hawk_id,
