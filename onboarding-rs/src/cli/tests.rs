@@ -808,3 +808,25 @@ fn no_devices_exits_zero() {
         .output
         .contains("No known vacuums are available for onboarding."));
 }
+
+// ---- session tracking (Ctrl-C cleanup) ----------------------------------
+
+#[test]
+fn session_tracker_remembers_the_live_session_until_deleted() {
+    let tracker = SessionTracker::new(FakeApi::new(vec![q7()], vec![]));
+    assert_eq!(tracker.active_session(), None);
+    tracker.start_session("cloud-q7-a").unwrap();
+    assert_eq!(tracker.active_session().as_deref(), Some("sess-1"));
+    tracker.delete_session("sess-1").unwrap();
+    assert_eq!(tracker.active_session(), None);
+}
+
+#[test]
+fn session_tracker_cleanup_deletes_and_forgets() {
+    let tracker = SessionTracker::new(FakeApi::new(vec![q7()], vec![]));
+    tracker.start_session("cloud-q7-a").unwrap();
+    tracker.cleanup();
+    assert_eq!(tracker.inner().deleted(), vec!["sess-1"]);
+    tracker.cleanup();
+    assert_eq!(tracker.inner().deleted(), vec!["sess-1"]);
+}

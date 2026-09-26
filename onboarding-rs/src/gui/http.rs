@@ -2,7 +2,7 @@
 //! routes it calls, with the same paths, token check and responses as the
 //! FastAPI app in start_onboarding_gui.py.
 
-use std::io::{self, Read};
+use std::io;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};

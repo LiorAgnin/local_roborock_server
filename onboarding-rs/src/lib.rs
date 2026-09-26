@@ -10,3 +10,4 @@ pub mod protocol;
 pub mod pyjson;
 pub mod pyvalue;
 pub mod server;
+pub mod terminal;

@@ -638,5 +638,76 @@ fn run_session(
     }
 }
 
+/// Wraps an API and remembers the onboarding session that is currently
+/// open, so a Ctrl-C handler can release it (Python did this in `finally`).
+pub struct SessionTracker<A> {
+    inner: A,
+    active: std::sync::Mutex<Option<String>>,
+}
+
+impl<A: OnboardingApi> SessionTracker<A> {
+    pub fn new(inner: A) -> Self {
+        SessionTracker {
+            inner,
+            active: std::sync::Mutex::new(None),
+        }
+    }
+
+    pub fn inner(&self) -> &A {
+        &self.inner
+    }
+
+    pub fn active_session(&self) -> Option<String> {
+        self.slot().clone()
+    }
+
+    /// Delete the open session, if any (best effort).
+    pub fn cleanup(&self) {
+        let active = self.slot().take();
+        if let Some(session_id) = active {
+            let _ = self.inner.delete_session(&session_id);
+        }
+    }
+
+    fn slot(&self) -> std::sync::MutexGuard<'_, Option<String>> {
+        self.active
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+impl<A: OnboardingApi> OnboardingApi for SessionTracker<A> {
+    fn login(&self) -> Result<(), ApiError> {
+        self.inner.login()
+    }
+    fn list_devices(&self) -> Result<Vec<Value>, ApiError> {
+        self.inner.list_devices()
+    }
+    fn start_session(&self, duid: &str) -> Result<Json, ApiError> {
+        let session = self.inner.start_session(duid)?;
+        let session_id = pyvalue::first_str(&[session.get("session_id")], "");
+        let session_id = session_id.trim();
+        if !session_id.is_empty() {
+            *self.slot() = Some(session_id.to_owned());
+        }
+        Ok(session)
+    }
+    fn get_session(&self, session_id: &str) -> Result<Json, ApiError> {
+        self.inner.get_session(session_id)
+    }
+    fn delete_session(&self, session_id: &str) -> Result<Json, ApiError> {
+        {
+            let mut active = self.slot();
+            if active.as_deref() == Some(session_id) {
+                *active = None;
+            }
+        }
+        self.inner.delete_session(session_id)
+    }
+    fn get_status(&self) -> Result<Json, ApiError> {
+        self.inner.get_status()
+    }
+}
+
 #[cfg(test)]
 mod tests;

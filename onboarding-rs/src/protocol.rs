@@ -320,7 +320,7 @@ impl RsaKeyPair {
     /// Decrypt PKCS#1 v1.5 ciphertext made of back-to-back key-sized blocks.
     pub fn decrypt_blocks(&self, ciphertext: &[u8]) -> Result<Vec<u8>, ProtocolError> {
         let block = self.private.size();
-        if ciphertext.len() % block != 0 {
+        if !ciphertext.len().is_multiple_of(block) {
             return Err(ProtocolError::CiphertextLength {
                 len: ciphertext.len(),
                 block,

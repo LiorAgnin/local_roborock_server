@@ -4,7 +4,6 @@
 
 pub mod vacuum;
 
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
