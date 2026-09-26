@@ -1,0 +1,91 @@
+{
+  "session_key": "0123456789abcdef",
+  "pre_key": "6433df70f5a3a42e",
+  "wifi_body_json": "{\"u\":\"1234567890\",\"ssid\":\"Caf\\u00e9 \\u2615 Stra\\u00dfe \\ud83d\\ude00 \\\"q\\\" / \\\\ \\t\\u007f\\u0001\",\"token\":{\"r\":\"roborock.example.com:555/\",\"tz\":\"Europe/Berlin\",\"s\":\"S_TOKEN_00112233445566778899aabbccddeeff\",\"cst\":\"CET-1CEST,M3.5.0,M10.5.0/3\",\"t\":\"T_TOKEN_ffeeddccbbaa99887766554433221100\"},\"passwd\":\"p\\u00e4ssw\\u00f6rd\\n\\u20ac\",\"country_domain\":\"de\"}",
+  "wifi_packet_hex": "312e300000000100010160cac2c6193ee676b160e2986382b2dae91ce67ea27d2de45eab162af7bdf19aa8d3f2a9e85a2b71e94652f3a9aa7e94142aa308c4c910f2c7645cdde34e994eaf8f8111c4e3a15c24d25b1273c6012f88f920acf9053d53d882eaf8eb082b2ecac9ebcf02307d11256bd3ea15ef1c5f71861013f551ac25f69425a28b925ddf920856e35396fe3e8871825822194005a2b8ee178645036daf6ef3cc1f1a418492e84c3489f07852035f0ef6417ad394bf1909a40ed22c787460f32428ff4e130b96c0c0cd08da9b14834bb19667c07701f893af7519f747c3c500982040e6ddf9490040f4d948af5b660d8c5dddf1eab4b5a2942670b04a0ee7e9dfc2a5965c6c6635e831f9a91e8eadb000dc615a41d2011be620bdd2972cfed78524d5550fcbb0021c4866ff5f3b1bb34b9b78a82e21a34d94a93382a86a12836cb774a4f38405f31aff23633fbe43932dcc1a284e1a8436d1871ef11c810b48f6a86c9a8e9e133193c8",
+  "rsa_private_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIICXQIBAAKBgQDCKr8OFlNkAcW1s8FUxAwMdgsWRznKsyYLztjgfCy1H+OtW4wl\n2ITioeYu3Yl7V9O93MviDDYLbavoOOT5+7iecNYQFF6apAEFIHQNNEeTpuefZzA8\nutJ59O5EG0TnqeqTXqWq8fOhzf8pMM9BZ4nj3gA+vfN/kUWJe0eobdumvQIDAQAB\nAoGACN/yTp8Hnb0U/9qg/hJd6J3moNSNmC27EfQY5p3WX0r/WZejHsG4RTGYN1Ep\n7QjVJUr3yLO9LqWLI3iiQqjWRddIwj/JdeSVwB4ha+92G2tiKW7Q1P3lA5iy1nqz\ng3H190XnkZkKuktpAfMoIOFFA6LN5Dd2h2nT9Y+UoC19KfECQQDaS8+YwFMxBijo\nYlzAUc3E3eRqfaNyBezHwgM58N+2nqkgjrv2B44PMErF4Db6vgrtLEhkuP9eCRy/\n0nNjuoI1AkEA47QKKw2I3bWImubo/uq3RRS6WRoGDro4gjZzbWZ6baRu49Ag4ldj\nV0nRMynVyhYqDyobERP328bstR4kfjMjaQJAVjdy+oWbVdV0+rM+psaoWoS43kZY\n84PbjNnXpF66PMpVSgKVwgoh1WXhYl232TiN4DaJMR7P3TgEHs7jvBPBsQJBANjK\nRRQQYsqTV2gDiLmLRsninjjO6g2DhuGSbfsuoklZUKpdMbHNeatVgHOx1PX+fDTL\n5dEwrb71edBGzn/IuGECQQCFall688tx0INtHMDQ3F2zLl1xEbCrxZUdovLHTLEb\nMlkn0WFtEezztAvMYht6SMZOQkDsulZQLc5K0lxbpceS\n-----END RSA PRIVATE KEY-----",
+  "rsa_public_pem": "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDCKr8OFlNkAcW1s8FUxAwMdgsW\nRznKsyYLztjgfCy1H+OtW4wl2ITioeYu3Yl7V9O93MviDDYLbavoOOT5+7iecNYQ\nFF6apAEFIHQNNEeTpuefZzA8utJ59O5EG0TnqeqTXqWq8fOhzf8pMM9BZ4nj3gA+\nvfN/kUWJe0eobdumvQIDAQAB\n-----END PUBLIC KEY-----",
+  "hello_body_json": "{\"id\":1,\"method\":\"hello\",\"params\":{\"app_ver\":1,\"key\":\"-----BEGIN PUBLIC KEY-----\\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDCKr8OFlNkAcW1s8FUxAwMdgsW\\nRznKsyYLztjgfCy1H+OtW4wl2ITioeYu3Yl7V9O93MviDDYLbavoOOT5+7iecNYQ\\nFF6apAEFIHQNNEeTpuefZzA8utJ59O5EG0TnqeqTXqWq8fOhzf8pMM9BZ4nj3gA+\\nvfN/kUWJe0eobdumvQIDAQAB\\n-----END PUBLIC KEY-----\"}}",
+  "hello_packet_hex": "312e300000000100100150e7e5119ca33f24c03b6491521c511db68d47ee26364222946b1df1d61fc8d00de838d8b72adcea4b1f5024eb2aeae6cc947031b140f7d9777eb9a9db6a4d72d215af332fd976f182699044d55dbaa8dceb3b34ff314a56c09864afc54f73b03e30425f46c76b3482cdd2e4d2056ef98f752597b3b833f06ff6d5631db8b73484762b6012dbceeacc8526a727f87b75aa24b79bbebbea1d7cb2e3098320f0225e5fbcb2e7261433f3c49d75ab8904b91124005817db53b8aeac0ac81199d0e1b49cf47cbe04b205367c026e95f303998cdd65b12fc215cd259f7ee4b8a7baa4ce2df2791a3e6e96a0cf67868b8e838558b7ab22a952153227c800abf1f9582d0dee1adbcf18ee4471a648c98104a939b7526f1a60a54f4134a3a30e46b6f9fa55eb4dbf7f016144ccd7b5b1ee6f7a0f4e94330da4aee20146f51f0bfa63e20238fad456e4fda05ef7a47ab3c2ef56828c8425ad27",
+  "session_plaintext": "{\"id\":1,\"method\":\"hello\",\"params\":{\"key\":\"0123456789abcdef\",\"pad\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}",
+  "session_ciphertext_hex": "828440d66d55c1a8e991c47d26c502e11959f8991d832ea29771ea9a1f2425ff5fff9ef42c02c7baa61e5a4730e652a172715c78f18d0c9023a5ca0b8c68cb0527bbcbcba04930f4e61d2ef949800f800effb08f8f73a269f1134f1fa10d3fe676f7290d496804088cee68b04b079954f4bc251239bb5b369bd91509ed0244436343ce313b6a953f3b6808d163184551b2930ab02b805e269c08a6ccfacf3e2b8b4a97a0b44c78a91064e4a19715b7cc97e028cc168fd6e68b4a5f0eaeb239d0f8a30404ce5b560e31502b398da7c28e4b845f3b4cba894e3b8768b3352ce6f230fc3931f92bd39fd5d5d2ea9a964f008ab3d304dafa4484613faff5360195df",
+  "frame_hello_cmd16_hex": "312e30000000010010000568656c6c6f4e2d6745",
+  "frame_empty_cmd1_hex": "312e300000000100010000c1649506",
+  "server_normalization": [
+    {
+      "input": "api-roborock.example.com",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "api-roborock.example.com:8443",
+      "api_base_url": "https://api-roborock.example.com:8443",
+      "stack_server": "roborock.example.com:8443/"
+    },
+    {
+      "input": "https://roborock.example.com:8443/",
+      "api_base_url": "https://api-roborock.example.com:8443",
+      "stack_server": "roborock.example.com:8443/"
+    },
+    {
+      "input": "https://api-roborock.example.com",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "roborock.example.com:443",
+      "api_base_url": "https://api-roborock.example.com",
+      "stack_server": "roborock.example.com/"
+    },
+    {
+      "input": "API-Roborock.Example.COM",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "  api-roborock.example.com  ",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "user@api-roborock.example.com:555",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "abcdefghijklmno.example.com:555",
+      "api_base_url": "https://api-abcdefghijklmno.example.com:555",
+      "stack_server": "abcdefghijklmno.example.com:555/"
+    },
+    {
+      "input": "abcdefghijklmnop.example.com:555",
+      "api_base_url": "https://api-abcdefghijklmnop.example.com:555",
+      "stack_server_error": "Server host is too long for onboarding: token.r must be at most 32 characters, got 33 (abcdefghijklmnop.example.com:555/)."
+    },
+    {
+      "input": "api-roborock.example.com:not-a-port",
+      "api_base_url_error": "Server port must be numeric.",
+      "stack_server_error": "Server port must be numeric."
+    },
+    {
+      "input": "api-roborock.example.com:70000",
+      "api_base_url_error": "Server port must be numeric.",
+      "stack_server_error": "Server port must be numeric."
+    },
+    {
+      "input": "api-roborock.example.com:",
+      "api_base_url": "https://api-roborock.example.com:555",
+      "stack_server": "roborock.example.com:555/"
+    },
+    {
+      "input": "",
+      "api_base_url_error": "A server host is required.",
+      "stack_server_error": "A server host is required."
+    },
+    {
+      "input": "https://",
+      "api_base_url_error": "A server host is required.",
+      "stack_server_error": "A server host is required."
+    }
+  ]
+}

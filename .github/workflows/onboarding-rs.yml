@@ -1,0 +1,141 @@
+name: onboarding-rs
+
+# Checks and release binaries for the Rust onboarding tool (roborock-onboard).
+# Tracks the scope of issue #10 (prebuilt onboarding binaries).
+
+on:
+  pull_request:
+    paths:
+      - onboarding-rs/**
+      - ui.html
+      - .github/workflows/onboarding-rs.yml
+  push:
+    branches:
+      - main
+    paths:
+      - onboarding-rs/**
+      - ui.html
+      - .github/workflows/onboarding-rs.yml
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: onboarding-rs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  MANIFEST: onboarding-rs/Cargo.toml
+
+jobs:
+  lint:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: onboarding-rs
+
+      - name: cargo fmt --check
+        run: cargo fmt --manifest-path "$MANIFEST" --check
+
+      - name: cargo clippy
+        run: cargo clippy --manifest-path "$MANIFEST" --locked --all-targets -- -D warnings
+
+  test:
+    if: github.event_name != 'release'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: onboarding-rs
+
+      - name: cargo test
+        run: cargo test --manifest-path "${{ env.MANIFEST }}" --locked
+
+  release:
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Native musl builds (no Docker): `cross` would only mount the crate
+      # directory, but the binary embeds the repo-root ui.html.
+      - name: Install musl tools
+        if: contains(matrix.target, 'linux-musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --manifest-path "$MANIFEST" --locked --release --target "${{ matrix.target }}"
+
+      - name: Package
+        run: |
+          ext=""
+          if [[ "${{ matrix.target }}" == *windows* ]]; then ext=".exe"; fi
+          mkdir -p dist
+          asset="roborock-onboard-${{ matrix.target }}${ext}"
+          cp "onboarding-rs/target/${{ matrix.target }}/release/roborock-onboard${ext}" "dist/${asset}"
+          cd dist
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${asset}" > "${asset}.sha256"
+          else
+            shasum -a 256 "${asset}" > "${asset}.sha256"
+          fi
+          ls -l
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$REPO"
