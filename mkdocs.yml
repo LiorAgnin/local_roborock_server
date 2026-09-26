@@ -63,3 +63,7 @@ nav:
     - Custom MQTT: custom_mqtt.md
     - Custom Certificate Management: custom_cert_management.md
     - Technical Writeup: technical_writeup.md
+
+# Agent-facing docs (read by engineering skills), not part of the published site
+exclude_docs: |
+  agents/
