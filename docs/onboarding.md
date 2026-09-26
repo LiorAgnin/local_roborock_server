@@ -17,7 +17,9 @@ You can onboard your vacuum using either of the following approaches:
 
 ## Get The Onboarding Tool
 
-`roborock-onboard` is a single self-contained binary with both the CLI and the web UI. It needs no Python, `uv` or other dependencies. Download the file for your machine from the [latest release](https://github.com/python-roborock/local_roborock_server/releases/latest):
+`roborock-onboard` is a single self-contained binary with both the CLI and the web UI. It needs no Python, `uv` or other dependencies. Download the file for your machine from the [latest release](https://github.com/python-roborock/local_roborock_server/releases/latest).
+
+> The binaries are attached starting with the first release published after the Rust onboarding tool was added. If the latest release has no `roborock-onboard-*` files yet, build it from source (see the end of this section) or use the [Python scripts](#python-scripts-fallback) for now.
 
 | Machine | File |
 | --- | --- |

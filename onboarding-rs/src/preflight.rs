@@ -204,9 +204,9 @@ fn service_map_from_status(status: &Json) -> Result<Vec<(String, Json)>, Preflig
 fn service_port(service: &Json) -> u16 {
     let detail = pyvalue::first_str(&[service.get("detail")], "");
     let detail = detail.trim_end();
-    let digits_start = detail
-        .rfind(|c: char| !c.is_ascii_digit())
-        .map_or(0, |idx| idx + 1);
+    // Count trailing ASCII digits by byte: each is one byte, so the split point
+    // is always a char boundary even when the text before it is multi-byte.
+    let digits_start = detail.len() - detail.bytes().rev().take_while(u8::is_ascii_digit).count();
     let digits = &detail[digits_start..];
     if digits.is_empty() || !detail[..digits_start].ends_with(':') {
         return DEFAULT_MQTT_TLS_PORT;
@@ -456,6 +456,16 @@ mod tests {
     fn falls_back_to_default_mqtt_port_without_detail_port() {
         let (_, probes, _, _) = run(healthy("embedded"), false);
         assert_eq!(probes[1].port, DEFAULT_MQTT_TLS_PORT);
+    }
+
+    #[test]
+    fn non_ascii_detail_falls_back_without_panicking() {
+        for detail in ["tls proxy starting…", "écoute:", "ポート:8881"] {
+            let (_, probes, _, _) = run(healthy(detail), false);
+            assert_eq!(probes[1].port, 8881, "{detail}");
+        }
+        let (_, probes, _, _) = run(healthy("écoute:8883"), false);
+        assert_eq!(probes[1].port, 8883);
     }
 
     #[test]
